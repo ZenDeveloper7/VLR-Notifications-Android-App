@@ -1,21 +1,22 @@
 package com.zen.vlrnotifications
 
+import android.app.AlarmManager
+import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardColors
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -23,18 +24,32 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import com.zen.vlrnotifications.helpers.NotificationScheduler
 import com.zen.vlrnotifications.models.ValorantMatchModel
 import com.zen.vlrnotifications.network.Resource
 import com.zen.vlrnotifications.ui.theme.ValorantMatchNotificationsTheme
 import com.zen.vlrnotifications.viewmodel.MainViewModel
 
 class MainActivity : ComponentActivity() {
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permission is granted. Continue with the app's functionality.
+        } else {
+            // Permission is denied. Handle the case.
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -43,20 +58,61 @@ class MainActivity : ComponentActivity() {
                 MainScreen()
             }
         }
+        requestNotificationPermission()
+    }
+
+    private fun requestNotificationPermission() {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                // Permission is already granted. Continue with the app's functionality.
+            }
+
+            shouldShowRequestPermissionRationale(android.Manifest.permission.POST_NOTIFICATIONS) -> {
+                // Show an explanation to the user why the permission is needed.
+            }
+
+            else -> {
+                // Directly request the permission.
+                requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
     }
 }
+
 
 @Composable
 fun MainScreen(mainViewModel: MainViewModel = MainViewModel()) {
 
-    val matchesResponse = mainViewModel.vlrMatchesMutableStatFlow.collectAsState().value
+    val context = LocalContext.current
+    val matchesResponse by mainViewModel.vlrMatchesMutableStatFlow.collectAsState()
     val matchList = remember { mutableListOf<ValorantMatchModel>() }
+    val notificationScheduler = NotificationScheduler(context)
+    val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+
+    LaunchedEffect(Unit) {
+        mainViewModel.getMatches(1)
+    }
 
     LaunchedEffect(matchesResponse.status) {
         when (matchesResponse.status) {
             Resource.Status.SUCCESS -> {
                 matchesResponse.data?.let {
                     matchList.addAll(it)
+                    /*if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        if (alarmManager.canScheduleExactAlarms()) {
+                            matchList.forEach { match ->
+                                notificationScheduler.scheduleNotification(match)
+                            }
+                        } else {
+                            val intent = Intent().apply {
+                                action = Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM
+                            }
+                            context.startActivity(intent)
+                        }
+                    }*/
                 }
                 // Handle success
             }
@@ -75,17 +131,11 @@ fun MainScreen(mainViewModel: MainViewModel = MainViewModel()) {
         }
     }
 
-    Scaffold { innerPadding ->
+    Scaffold(contentColor = Color.White) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
-            Button(
-                onClick = {
-                    mainViewModel.getMatches(1)
-                }
-            ) {
-                Text("Get Matches")
-            }
             LazyColumn(modifier = Modifier.padding(innerPadding)) {
                 items(matchList) { match ->
+                    Log.d("TAG", "MainScreen: ")
                     MatchCard(match)
                 }
             }
@@ -95,7 +145,7 @@ fun MainScreen(mainViewModel: MainViewModel = MainViewModel()) {
 
 @Composable
 fun MatchCard(valorantMatchModel: ValorantMatchModel) {
-    Card(colors = CardDefaults.cardColors().copy(containerColor = Color.White)) {
+    Card(colors = CardDefaults.cardColors().copy(containerColor = Color.LightGray)) {
         Column(
             modifier = Modifier
                 .padding(10.dp)
