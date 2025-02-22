@@ -17,6 +17,7 @@ data class ValorantMatchModel(
 ) {
     fun getISTTime(): String {
         return convertCSTtoIST("$date $time")
+//        return "Sat, February 22, 2025 10:55 PM"
     }
 }
 

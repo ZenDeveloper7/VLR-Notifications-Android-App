@@ -8,7 +8,9 @@ import android.content.Context
 import android.content.Context.ALARM_SERVICE
 import android.content.Intent
 import android.os.Build
+import com.google.gson.Gson
 import com.zen.vlrnotifications.models.ValorantMatchModel
+import com.zen.vlrnotifications.receiver.ReminderReceiver
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.ZoneId
 import org.threeten.bp.format.DateTimeFormatter
@@ -24,16 +26,20 @@ object NotificationScheduler {
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
+            val intent = Intent(context, ReminderReceiver::class.java)
+            intent.putExtra("match", Gson().toJson(matchModel))
+
+            //Try sending notification instead of going through broadcast
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                matchModel.hashCode(),
-                Intent(),
+                System.currentTimeMillis().toInt(),
+                intent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
             )
+
             val alarmManager = context.getSystemService(ALARM_SERVICE) as AlarmManager
             val notifyWhen = dateTimeToMillis(matchModel.getISTTime())
-
             try {
                 alarmManager.setExactAndAllowWhileIdle(
                     AlarmManager.RTC_WAKEUP,
