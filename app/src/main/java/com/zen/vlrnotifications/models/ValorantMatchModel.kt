@@ -1,5 +1,6 @@
 package com.zen.vlrnotifications.models
 
+import com.google.gson.Gson
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.ZoneId
 import org.threeten.bp.format.DateTimeFormatter
@@ -18,6 +19,14 @@ data class ValorantMatchModel(
     fun getISTTime(): String {
         return convertCSTtoIST("$date $time")
 //        return "Sat, February 22, 2025 10:55 PM"
+    }
+
+    fun toJson(): String {
+        return Gson().toJson(this)
+    }
+
+    fun fromJson(jsonString: String): ValorantMatchModel {
+        return Gson().fromJson(jsonString, ValorantMatchModel::class.java)
     }
 }
 
